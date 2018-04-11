@@ -1,0 +1,37 @@
+
+--https://jonathanlewis.wordpress.com/2018/04/06/sql-monitor/
+set linesize 255
+set pagesize 200
+set trimspool on
+set long 200000
+ 
+column text_line format a254
+set heading off
+ 
+define m_sql_id = 'fssk2xabr717j'
+ 
+spool rep_mon
+ 
+SELECT  dbms_sqltune.report_sql_monitor(
+                sql_id=> v.sql_id,
+                sql_exec_id => v.max_sql_exec_id
+        ) text_line
+from     (
+        select
+                sql_id,
+                max(sql_exec_id)        max_sql_exec_id
+        from
+                v$sql_monitor
+        where
+                sql_id = '&m_sql_id'
+        and     status like 'DONE%'
+        group by
+                sql_id
+        )       v
+;
+ 
+spool off
+ 
+set heading on
+set linesize 132
+set pagesize 60
