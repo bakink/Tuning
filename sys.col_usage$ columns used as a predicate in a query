@@ -1,0 +1,12 @@
+--https://mehmeteser.wordpress.com/2014/05/02/method_opt-with-auto-histograms/
+
+select c.OWNER, c.TABLE_NAME, c.COLUMN_NAME,  cu.equality_preds, cu.timestamp
+ from sys.col_usage$ cu,
+    dba_tab_columns c,
+    dba_objects o
+ where cu.obj# = o.OBJECT_ID 
+    and cu.intcol# = c.COLUMN_ID   
+    and o.OWNER = c.OWNER
+    and o.OBJECT_NAME = c.TABLE_NAME
+    and o.OBJECT_NAME ='ESER_SIL'
+    order by cu.intcol# ;
