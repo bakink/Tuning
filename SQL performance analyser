@@ -1,0 +1,350 @@
+--http://www.williamrobertson.net/documents/performance-for-sqlid.html
+
+-- Diagnostic queries for a specified SQL ID
+-- PL/SQL Developer format - open in an SQL window, select-all and execute, entering SQL ID at the prompt.
+-- William Robertson, 2015
+ 
+-- tab=Plans
+select plan_hash_value as "Plan hash"
+     , sum(executions_calc) as "Times called"
+     , sum(end_of_fetch_count) as "Times completed"
+     , round(100 * sum(end_of_fetch_count) / sum(executions_calc),1) as "Success %"
+     , cast(numtodsinterval(sum(elapsed_time)/1E6,'SECOND') as interval day(1) to second(2)) as "Total time"
+     -- , round(sum(elapsed_time)/1e6) as "Total seconds"
+     , round(sum(elapsed_time)/1E6 / nvl(sum(executions_calc),1),1) as "Average seconds"
+     , cast(numtodsinterval(sum(elapsed_time)/1E6 / nvl(sum(executions_calc),1),'SECOND') as interval day(1) to second(1)) as "Average time"
+     -- , sum(buffer_gets) as "Buffer gets"
+     , round(sum(buffer_gets)/sum(executions_calc)) as "Buffer gets/exec"
+     , round(sum(buffer_gets)/nullif(sum(rows_processed),0)) as "Buffer gets/row"
+     , sum(rows_processed) as "Rows"
+     , round(sum(rows_processed) / sum(executions_calc)) as "Rows/exec"
+     , cast(numtodsinterval(sum(elapsed_time)/nullif(sum(rows_processed),0)/1E6,'SECOND') as interval day(1) to second(3)) as "Avg time/row"
+     , cast
+       ( case
+            when sum(elapsed_time)/nullif(sum(rows_processed),0) < 2147483647 then  -- 2**31 -1, limit for 32 bit integers and a
+                 numtodsinterval(sum(elapsed_time)/nullif(sum(rows_processed),0),'SECOND')
+            else numtodsinterval(sum(elapsed_time/3600)/nullif(sum(rows_processed),0),'HOUR')
+         end  -- Avoid "ORA-01873: the leading precision of the interval is too small" for large values
+       as interval day(5) to second(0)) as "Avg time/1M rows"
+     , sum(px_servers_executions) as "PX server executions"
+from   ( select s.sql_id
+              , trunc(s.last_active_time) as exec_date
+              , plan_hash_value
+              --, executions
+              , case executions when 0 then 1 else executions end as executions_calc -- to use in expressions without NULLIF
+              , px_servers_executions
+              , elapsed_time
+              , buffer_gets
+              , rows_processed
+              , end_of_fetch_count
+         from   v$sqlstats s
+         union
+         select s.sql_id
+              , trunc(cast(h.begin_interval_time as date)) as exec_date
+              , plan_hash_value
+              --, executions_delta executions
+              , nullif(executions_delta,0) executions_calc
+              , px_servers_execs_delta as px_servers_executions
+              , elapsed_time_delta as elapsed_time
+              , buffer_gets_delta as buffer_gets
+              , rows_processed_delta as rows_processed
+              , end_of_fetch_count_delta as end_of_fetch_count
+         from   dba_hist_sqlstat s
+                join dba_hist_snapshot h on h.snap_id = s.snap_id and h.dbid = s.dbid and h.instance_number = s.instance_number
+       )
+where  sql_id = trim(&)
+group by plan_hash_value
+having sum(executions_calc) > 0
+order by plan_hash_value;
+-- tab=Executions (recent)
+select trunc(last_active_time) as "Run date"
+     , to_char(min(last_active_time),'HH24:MI:SS') as "First"
+     , to_char(max(last_active_time),'HH24:MI:SS') as "Last"
+     , plan_hash_value as "Plan hash"
+     , sum(executions_calc) as "Times called"
+     , sum(end_of_fetch_count) as "Times completed"
+     , least(100, round(100 * sum(end_of_fetch_count) / sum(executions_calc),1)) as "Success %"
+     , cast(numtodsinterval(sum(elapsed_time)/1E6,'SECOND') as interval day(1) to second(2)) as "Total time"
+     -- , round(sum(elapsed_time)/1e6) as "Total seconds"
+     , round(sum(elapsed_time)/1E6 / nvl(sum(executions_calc),1),1) as "Average (s)"
+     , round(sum(elapsed_time)/1E6 / nvl(sum(executions_calc),1)/nvl(nullif(sum(px_servers_executions),0),1)) as "Average (s) PX"
+     , cast(numtodsinterval(sum(elapsed_time)/1E6 / nvl(sum(executions_calc),1),'SECOND') as interval day(1) to second(1)) as "Average time"
+     , cast(numtodsinterval(sum(elapsed_time)/1E6 / nvl(sum(executions_calc),1) /nvl(nullif(sum(px_servers_executions),0),1),'SECOND') as interval day(1) to second(1)) as "Average time PX"
+     -- , sum(buffer_gets) as "Buffer gets"
+     , round(sum(buffer_gets)/sum(executions_calc)) as "Buffer gets/exec"
+     , round(sum(buffer_gets)/nullif(sum(rows_processed),0)) as "Buffer gets/row"
+     , sum(rows_processed) as "Rows"
+     , round(sum(rows_processed) / sum(executions_calc)) as "Rows/exec"
+     , cast(numtodsinterval(sum(elapsed_time)/nullif(sum(rows_processed),0)/1E6,'SECOND') as interval day(1) to second(3)) as "Avg time/row"
+     , cast
+       ( case
+            when sum(elapsed_time)/nullif(sum(rows_processed),0) < 2147483647 then  -- 2**31 -1, limit for 32 bit integers
+                 numtodsinterval(sum(elapsed_time)/nullif(sum(rows_processed),0),'SECOND')
+            else numtodsinterval(sum(elapsed_time/3600)/nullif(sum(rows_processed),0),'HOUR')
+         end  -- Avoid "ORA-01873: the leading precision of the interval is too small" for large values
+       as interval day(5) to second(0)) as "Avg time/1M rows"
+     , sum(px_servers_executions) as "PX server executions"
+from   ( select s.sql_id
+              , s.last_active_time
+              , plan_hash_value
+              --, executions
+              , case executions when 0 then 1 else executions end as executions_calc -- to use in expressions without NULLIF
+              , px_servers_executions
+              , elapsed_time
+              , buffer_gets
+              , rows_processed
+              , end_of_fetch_count
+         from   v$sqlstats s )
+where  sql_id = trim(&)
+group by trunc(last_active_time), plan_hash_value
+having sum(executions_calc) > 0
+order by trunc(last_active_time), plan_hash_value;
+-- tab=Executions (historical)
+select run_date            as "Run date"
+     , "First"
+     , "Last"
+     , plan_hash_value     as "Plan hash"
+     , executions          as "Times called"
+     , end_of_fetch_count  as "Times completed"
+     , success_rate        as "Success %"
+     , elapsed_time        as "Total time"
+     , avg_time            as "Avg time"
+     , avg_s               as "Avg seconds"
+     , round(avg_s * (sum(avg_rows) over() / greatest(sum(avg_s) over(),1))) as "Avg s scaled to rows"  -- for charting time vs rows
+     , avg_rows            as "Avg rows"
+     , avg_bg              as "Avg Buffer gets"
+     , bg_per_row          as "Buffer gets/row"
+     , avg_time_per_row    as "Time/row"
+     , px_servers_execs    as "PX server executions"
+from
+       ( select trunc(cast(t.begin_interval_time as date)) as run_date
+              , plan_hash_value
+              , to_char(min(cast(t.begin_interval_time as date)),'HH24:MI:SS') as "First"
+              , to_char(max(cast(t.end_interval_time as date)),'HH24:MI:SS') as "Last"
+              , sum(s.executions_delta) as executions
+              , sum(s.end_of_fetch_count_delta) as end_of_fetch_count
+              , max(s.executions_total) as executions_total
+              , max(s.end_of_fetch_count_total) as end_of_fetch_count_total
+              , least(100, round(100 * max(s.end_of_fetch_count_total) / nullif(max(s.executions_total),0),1)) as success_rate
+              , cast(numtodsinterval(max(s.elapsed_time_total)/1E6,'SECOND') as interval day(1) to second(2)) as elapsed_time
+              , cast(numtodsinterval(max(s.elapsed_time_total)/1E6 / nvl(nullif(max(s.executions_total),0),1),'SECOND') as interval day(1) to second(1)) as avg_time
+              , round(max(s.elapsed_time_total)/1E6 / nvl(nullif(max(s.executions_total),0),1),1) as avg_s
+              , round(max(s.buffer_gets_total)/nullif(max(s.executions_total),0)) as avg_bg
+              , round(max(s.buffer_gets_total)/nullif(max(s.rows_processed_total),0)) as bg_per_row
+              , max(s.rows_processed_total) as rows_processed
+              , round(max(s.rows_processed_total) / nullif(max(s.executions_total),0)) as avg_rows
+              , cast(numtodsinterval(max(s.elapsed_time_total)/nullif(max(s.rows_processed_total),0)/1E6,'SECOND') as interval day(1) to second(3)) as avg_time_per_row
+              , max(s.elapsed_time_total)/nullif(max(s.rows_processed_total),0)/1E6 as avg_s_per_row
+              , max(s.px_servers_execs_total) as px_servers_execs
+         from   dba_hist_sqlstat s
+                join dba_hist_snapshot t on t.snap_id = s.snap_id and t.dbid = s.dbid and t.instance_number = s.instance_number
+         where  s.sql_id = trim(&)
+         group by trunc(cast(t.begin_interval_time as date)), s.plan_hash_value )
+order by 1, 2, plan_hash_value;
+-- tab=Executions (historical)
+select run_date            as "Run date"
+     , "First"
+     , "Last"
+     , plan_hash_value     as "Plan hash"
+     , executions          as "Times called"
+     , end_of_fetch_count  as "Times completed"
+     , success_rate        as "Success %"
+     , elapsed_time        as "Total time"
+     , avg_time            as "Avg time"
+     , avg_s               as "Avg seconds"
+     , round(avg_s * (sum(avg_rows) over() / greatest(sum(avg_s) over(),1))) as "Avg s scaled to rows"  -- for charting time vs rows
+     , avg_rows            as "Avg rows"
+     , avg_bg              as "Avg Buffer gets"
+     , bg_per_row          as "Buffer gets/row"
+     , avg_time_per_row    as "Time/row"
+     , px_servers_execs    as "PX server executions"
+from
+       ( select trunc(cast(t.begin_interval_time as date)) as run_date
+              , plan_hash_value
+              , to_char(min(cast(t.begin_interval_time as date)),'HH24:MI:SS') as "First"
+              , to_char(max(cast(t.end_interval_time as date)),'HH24:MI:SS') as "Last"
+              , sum(s.executions_delta) as executions
+              , sum(s.end_of_fetch_count_delta) as end_of_fetch_count
+              , least(100, round(100 * sum(s.end_of_fetch_count_delta) / nullif(sum(s.executions_delta),0),1)) as success_rate
+              , cast(numtodsinterval(sum(s.elapsed_time_delta)/1E6,'SECOND') as interval day(1) to second(2)) as elapsed_time
+              , cast(numtodsinterval(sum(s.elapsed_time_delta)/1E6 / nvl(nullif(sum(s.executions_delta),0),1),'SECOND') as interval day(1) to second(1)) as avg_time
+              , round(sum(s.elapsed_time_delta)/1E6 / nvl(nullif(sum(s.executions_delta),0),1),1) as avg_s
+              , round(sum(s.buffer_gets_delta)/nullif(sum(s.executions_delta),0)) as avg_bg
+              , round(sum(s.buffer_gets_delta)/nullif(sum(s.rows_processed_delta),0)) as bg_per_row
+              , sum(s.rows_processed_delta) as rows_processed
+              , round(sum(s.rows_processed_delta) / nullif(sum(s.executions_delta),0)) as avg_rows
+              , cast(numtodsinterval(sum(s.elapsed_time_delta)/nullif(sum(s.rows_processed_delta),0)/1E6,'SECOND') as interval day(1) to second(3)) as avg_time_per_row
+              , sum(s.elapsed_time_delta)/nullif(sum(s.rows_processed_delta),0)/1E6 as avg_s_per_row
+              , max(s.px_servers_execs_delta) as px_servers_execs
+         from   dba_hist_sqlstat s
+                join dba_hist_snapshot t on t.snap_id = s.snap_id and t.dbid = s.dbid and t.instance_number = s.instance_number
+         where  s.sql_id = trim(&)
+         group by trunc(cast(t.begin_interval_time as date)), s.plan_hash_value )
+order by 1, 2, plan_hash_value;
+-- tab=Recent ASH history
+select ash.sql_id, ash.sql_exec_start, ash.sql_exec_id, ash.sql_plan_hash_value, ash.sql_child_number
+     , cast(numtodsinterval(count(*),'SECOND') as interval day(0) to second(0)) as elapsed
+     , ash.qc_session_id, ash.session_id, ash.session_serial#
+     -- , sum(io.block_gets) as block_gets, sum(io.consistent_gets) as consistent_gets, sum(io.physical_reads) as physical_reads, sum(io.consistent_changes) as consistent_changes
+     , tls.sql_text as top_level_call
+     , rtrim(p.owner ||'.'|| p.object_name ||'.'|| p.procedure_name,'.') as current_procedure
+from   v$active_session_history ash
+       left join dba_procedures p on p.object_id = ash.plsql_object_id and nvl(p.subprogram_id,.5) = nvl(ash.plsql_subprogram_id,.5)
+       left join v$sqlstats tls on tls.sql_id = ash.top_level_sql_id
+where  ash.sql_id = trim(&)
+-- and    ash.sql_exec_id is not null
+group by ash.sql_id, ash.sql_exec_start,ash.sql_plan_hash_value, ash.sql_child_number, ash.qc_session_id, ash.session_id, ash.session_serial#, ash.sql_exec_id
+     , tls.sql_text
+     , p.owner, p.object_name, p.procedure_name
+order by min(ash.sample_time), ash.sql_exec_start, ash.sql_exec_id, ash.qc_session_id nulls first;
+-- tab=Recent ASH history with wait objs
+select ash.sql_id, ash.sql_exec_start, ash.sql_exec_id, ash.sql_plan_hash_value
+     , ash.session_id, ash.session_serial#, u.username
+     , case when current_obj# > 0 then
+          ( select distinct o.owner || '.' || o.object_name || rtrim('.' || o.subobject_name,'.')
+            from   dba_objects o where o.object_id = current_obj# )
+       end as wait_object
+     , round(100*(ratio_to_report(count(*)) over())) as percent
+     , cast(numtodsinterval(count(*),'SECOND') as interval day(0) to second(0)) as elapsed
+     , sum(ash.delta_read_io_bytes) as read_bytes
+     , sum(ash.delta_write_io_requests) as write_bytes
+     , ash.sql_child_number, ash.qc_session_id
+from   v$active_session_history ash
+       join dba_users u on u.user_id = ash.user_id
+where  ash.sql_id = trim(&)
+and    ash.sql_exec_id is not null
+group by ash.sql_id, ash.sql_exec_start,ash.sql_plan_hash_value, ash.sql_child_number, ash.qc_session_id, ash.session_id, ash.session_serial#, u.username, ash.sql_exec_id, ash.current_obj#
+order by ash.sql_exec_start;
+-- tab=SQL Stats
+select sql_id
+     , s.child_number
+     , sql_text
+     , s.parsing_schema_name
+     , rtrim(ltrim(o.owner || '.' || o.object_name || '.', '.') ||
+       ( select regexp_substr(min(ltrim(upper(sp1.text))) keep (dense_rank first order by sp1.line desc),'[^( ]+',1,2)
+         from   dba_source sp1
+         where  sp1.owner = o.owner and sp1.name = o.object_name and sp1.type = o.object_type
+         and    sp1.line < s.program_line#
+         and    regexp_like(ltrim(upper(sp1.text)),'^(PROCEDURE|FUNCTION)\s') )
+       , '.') as source
+     , s.program_line# as source_line
+     , plan_hash_value
+     , last_active_time
+     , executions
+     , parse_calls
+     , least(100, round(100 * parse_calls/nvl(nullif(executions,0),1),1)) as "Parsed%"
+     , cast(numtodsinterval(elapsed_time/1E6,'SECOND') as interval day(0) to second(0)) as total_time
+     , cast(numtodsinterval(elapsed_time / nvl(nullif(executions,0),1) / 1E6,'SECOND') as interval day(0) to second(4)) as avg_time
+     , round(100 * cpu_time / nullif(elapsed_time,0),1) "CPU%"
+     , round(100 * user_io_wait_time / nullif(elapsed_time,0),1) "IO%"
+     , round(100 * concurrency_wait_time / nullif(elapsed_time,0),1) "CONCURRRENCY%"
+     , round(100 * application_wait_time / nullif(elapsed_time,0),1) "APPLICATION%"
+     , round(100 * plsql_exec_time / nullif(elapsed_time,0),1) "PL/SQL%"
+     , buffer_gets buffer_gets_total
+     , round(buffer_gets / nvl(nullif(executions,0),1)) as buffer_gets_per_exec
+     , disk_reads
+     , round(rows_processed / nullif(fetches,0),1)            as rows_per_fetch
+     , round(rows_processed / nvl(nullif(executions,0),1),1)  as rows_per_exec
+     , direct_writes
+     , rows_processed
+     , fetches
+     , end_of_fetch_count
+     , loads
+     , s.loaded_versions version_count
+     , invalidations
+     , px_servers_executions
+     , cluster_wait_time
+     , cast(numtodsinterval(plsql_exec_time/1E6,'SECOND') as interval day(0) to second(0)) as plsql_exec_time
+     , cast(numtodsinterval(java_exec_time/1E6,'SECOND') as interval day(0) to second(0)) as java_exec_time
+     , sorts
+     , sharable_mem
+     , serializable_aborts
+from   v$sql s
+       left join dba_objects o on o.object_id = s.program_id
+where  s.sql_id = trim(&);
+-- tab=Object stats
+select * from (
+with plan_objects as
+     ( select --+ materialize
+              p.object_owner
+            , p.object_name
+            , p.object_type
+            , p.partition_start
+            , p.partition_stop
+            , p.cardinality
+            , p.operation
+            , p.options
+            , count(*) as occurs_in_plan
+       from   v$sql_plan_statistics_all p
+       where  p.sql_id = trim(&)
+       and    p.plan_hash_value =
+              ( select plan_hash_value from
+                       ( select plan_hash_value, row_number() over (order by timestamp desc) as seq
+                         from   gv$sql_plan p
+                         where  p.sql_id = trim(&)
+                         and    p.inst_id = 1 )
+                where seq = 1 )
+       and    p.object_type != 'VIEW'
+       group by p.object_owner, p.object_name, p.object_type, p.partition_start, p.partition_stop, p.cardinality, p.operation, p.options )
+   , object_stats as
+     ( select ts.owner as object_owner
+            , ts.table_name as object_name
+            , ts.table_name as display_name
+            , ts.num_rows
+            , ts.blocks
+            , ts.last_analyzed
+            , ts.stale_stats
+       from   dba_tab_statistics ts
+       where  (ts.owner, ts.table_name)  in
+              (select object_owner, object_name from plan_objects where object_type like 'TABLE%')
+       and    ts.partition_name is null
+       union
+       select xs.owner
+            , xs.index_name
+            , '(' || xs.table_name || ') ' || index_name as display_name
+            , xs.num_rows
+            , xs.leaf_blocks as blocks
+            , xs.last_analyzed
+            , xs.stale_stats
+       from   dba_ind_statistics xs
+       where  (xs.owner, xs.index_name) in
+              (select object_owner, object_name from plan_objects where object_type like 'INDEX%')
+       and    xs.partition_name is null
+     )
+select --+ dynamic_sampling(8)
+       object_owner
+     , o.object_type
+     , nvl(s.display_name,object_name) as object_name
+     , s.stale_stats as "Stale?"
+     -- , o.occurs_in_plan
+     , o.operation || ' ' || o.options as operation
+     , o.cardinality
+     , s.num_rows as "Rows (global)"
+     , s.blocks
+     , s.last_analyzed
+     , o.partition_start
+     , o.partition_stop
+from   plan_objects o
+       left join object_stats s using(object_owner, object_name)
+order by
+      case object_owner when 'SYS' then 2 else 1 end
+    , object_owner
+    , ltrim(object_name,'(')
+);
+-- tab=Plans (AWR)
+select * from table(dbms_xplan.display_awr(&, null, null, 'ADVANCED'));
+-- tab=Plan (Current)
+select * from table(dbms_xplan.display_cursor(trim(&), null, 'ADVANCED'));
+-- tab=Last captured binds
+select name, value_string, datatype_string, last_captured
+from   ( select distinct name, value_string, datatype_string, b.last_captured, dense_rank() over(partition by name order by last_captured desc) as capture_seq
+         from   dba_hist_sqlbind b
+         where  b.sql_id = &
+         and    b.was_captured = 'YES' )
+where  capture_seq = 1
+order by lpad(ltrim(name,':B'),30);
+-- tab=SQL text
+select s.sql_id, s.sql_text, a.name as command_type
+from   dba_hist_sqltext s
+       left join ( select action, name from audit_actions union select 189, 'MERGE' from dual ) a on a.action = s.command_type
+where  s.sql_id = trim(&);
