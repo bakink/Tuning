@@ -52,3 +52,27 @@ select dbms_sqltune.report_sql_monitor(
   type=>'EM', 
   sql_id=>'4vbqtp97hwqk8') monitor_report from dual;
 spool off
+
+SET LONG 1000000 
+SET FEEDBACK OFF
+spool monitor_sql.html 
+SELECT DBMS_SQLTUNE.report_sql_monitor(sql_id =>'0tqfh0cggfg0v',type=> 'HTML')
+AS report FROM dual;
+spool off
+
+--How to Collect SQL Monitor Output For Parallel Query (Doc ID 1604469.1)
+SELECT DBMS_SQLTUNE.REPORT_SQL_MONITOR(SESSION_ID=>&1,
+              SESSION_SERIAL=>&2,    
+              INST_ID=>&3,
+              report_level=>'ALL',
+              type =>'ACTIVE') as report 
+from dual;
+
+----
+POOL	report_sql_monitor_acIve.htm
+SELECT	DBMS_SQLTUNE.report_sql_monitor(	
+		sql_id							=>	'1kf86hqsyvddb’,
+		type									=>	'ACTIVE',	
+		report_level	=>	'ALL')	AS	report	
+FROM	dual;	
+SPOOL	OFF	
