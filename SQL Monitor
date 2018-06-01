@@ -35,3 +35,13 @@ spool off
 set heading on
 set linesize 132
 set pagesize 60
+
+------
+
+SELECT DBMS_SQLTUNE.report_sql_monitor(
+  sql_id       => '0hnujnc0a8b9j',
+  sql_exec_id  => 67108864
+  type         => 'TEXT',
+  report_level => 'ALL') AS report
+FROM dual;
+
