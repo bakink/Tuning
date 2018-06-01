@@ -68,11 +68,19 @@ SELECT DBMS_SQLTUNE.REPORT_SQL_MONITOR(SESSION_ID=>&1,
               type =>'ACTIVE') as report 
 from dual;
 
+SELECT DBMS_SQLTUNE.report_sql_monitor(
+  sql_id       => 'ghc9z7q3qzr7w',
+  event_detail => 'YES',
+  sql_exec_id  => null,
+  type         => 'EM',
+  report_level => 'ALL') AS report
+FROM dual;
+
 ----
 POOL	report_sql_monitor_acIve.htm
 SELECT	DBMS_SQLTUNE.report_sql_monitor(	
-		sql_id							=>	'1kf86hqsyvddb’,
-		type									=>	'ACTIVE',	
-		report_level	=>	'ALL')	AS	report	
+		sql_id=>'1kf86hqsyvddb’,
+		type=>	'ACTIVE',	
+		report_level=>'ALL') AS report	
 FROM	dual;	
 SPOOL	OFF	
