@@ -1,0 +1,105 @@
+with subs as
+(select *
+    from (select sql_id,
+                 program_id,
+                 program_line#,
+                 action,
+                 module,
+                 service,
+                 parsing_schema_name,
+                 round(buffer_gets / decode(executions, 0, 1, executions)) buffer_per_Exec,
+                 row_number() over(partition by sql_id order by program_id desc, program_line#) sira,
+                 decode(program_id,
+                        0,
+                        null,
+                        owner || '.' || object_name || '(' || program_line# || ')') plsql_procedure
+            from gv$sql a, dba_objects b
+           where a.program_id = b.object_id(+))
+   where (sira = 1))
+Select t.sql_text,
+       s.plsql_procedure,
+       s.module,
+       s.parsing_schema_name,
+       t.sql_id,
+       t.plan_hash_value,
+       t.executions,
+       "Buffer Gets",
+       "Buffer Gets/Exec",
+       "Disk Reads",
+       "Disk Reads/Exec",
+       cpu_time,
+       Cpu_Per_Exec,
+       elapsed_time,
+       Elaps_Per_Exec,
+       "Concurrency_Wait_Time",
+       "cc/Exec",
+       Cluster_Wait_Time "Cluster_Wait_Time",
+       "cl/exec",
+       "User_IO_Wait_Time",
+       "io/exec"
+  from (Select sql_text,
+               sql_id,
+               plan_hash_value,
+               executions,
+               to_char("Buffer Gets") "Buffer Gets",
+               to_Char("Buffer Gets/Exec") "Buffer Gets/Exec",
+               to_Char("Disk Reads") "Disk Reads",
+               to_Char("Disk Reads/Exec") "Disk Reads/Exec",
+               to_char(cpu_time) cpu_time,
+               to_char("CPU/Exec") Cpu_Per_Exec,
+               to_char(elapsed_time) elapsed_time,
+               to_char("Elap/Exec") Elaps_Per_Exec,
+               "Concurrency_Wait_Time",
+               "cc/Exec",
+               to_char("Cluster_Wait_Time") Cluster_Wait_Time,
+               "cl/exec",
+               "User_IO_Wait_Time",
+               "io/exec"
+          from (Select *
+                  from (select sql_text,
+                               a.sql_id,
+                               plan_hash_value,
+                               Sum(Nvl(executions, 0)) executions,
+                               Sum(Nvl(buffer_gets, 0)) "Buffer Gets",
+                               round(sum(Nvl(buffer_gets, 0)) /
+                                     sum(Nvl(executions, 0)),
+                                     2) "Buffer Gets/Exec",
+                               Sum(Nvl(disk_reads, 0)) "Disk Reads",
+                               round(Sum(Nvl(disk_reads, 0)) /
+                                     sum(Nvl(executions, 0)),
+                                     2) "Disk Reads/Exec",
+                               sum(Nvl(cpu_time, 0)) cpu_time,
+                               round(sum(Nvl(cpu_time, 0)) /
+                                     sum(Nvl(executions, 0)),
+                                     2) "CPU/Exec",
+                               sum(Nvl(elapsed_time, 0)) elapsed_time,
+                               round(sum(Nvl(elapsed_time, 0)) /
+                                     sum(Nvl(executions, 0)),
+                                     2) "Elap/Exec",
+                               sum(Nvl(Concurrency_wait_time, 0)) "Concurrency_Wait_Time",
+                               round(sum(Nvl(Concurrency_wait_time, 0)) /
+                                     sum(Nvl(executions, 0)),
+                                     2) "cc/Exec",
+                               Sum(Nvl(cluster_wait_time, 0)) "Cluster_Wait_Time",
+                               round(Sum(Nvl(cluster_wait_time, 0)) /
+                                     sum(Nvl(executions, 0)),
+                                     2) "cl/exec",
+                               Sum(Nvl(user_io_wait_time, 0)) "User_IO_Wait_Time",
+                               round(Sum(Nvl(user_io_wait_time, 0)) /
+                                     Sum(Nvl(executions, 0)),
+                                     2) "io/exec"
+                          from gv$sqlstats a,
+                               (select distinct sql_id
+                                  from gv$sql_plan b
+                                 where options like '%FULL%'
+                                   and object_owner not in ('SYSTEM', 'SYS')) b
+                         where executions <> 0
+                           and upper(sql_Text) not like 'DECLARE%'
+                           and upper(trim(sql_Text)) not like 'BEGIN%'
+                           and a.sql_id = b.sql_id
+                         Group by sql_text, a.sql_id, plan_hash_value)
+                 Order by cpu_time desc) x
+         where rownum < 21) t,
+       subs s
+where s.sql_id(+) = t.sql_id
+Order by to_number(cpu_time) desc;
