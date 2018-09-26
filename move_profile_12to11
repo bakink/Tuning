@@ -1,0 +1,56 @@
+PRIMARY | alzx6dbadm01 | BAKIS@REPOPROD1 > @coe_xfr_sql_profile.sql
+
+Parameter 1:
+SQL_ID (required)
+
+Enter value for 1: 922nznmnhyzu7
+
+
+PLAN_HASH_VALUE AVG_ET_SECS
+--------------- -----------
+     3090904630      16.685
+     4180164098      16.724
+
+Parameter 2:
+PLAN_HASH_VALUE (required)
+
+Enter value for 2: 3090904630
+
+Values passed:
+~~~~~~~~~~~~~
+SQL_ID         : "922nznmnhyzu7"
+PLAN_HASH_VALUE: "3090904630"
+
+
+Execute coe_xfr_sql_profile_922nznmnhyzu7_3090904630.sql
+on TARGET system in order to create a custom SQL Profile
+with plan 3090904630 linked to adjusted sql_text.
+
+
+COE_XFR_SQL_PROFILE completed.
+SQL>exit
+Disconnected from Oracle Database 12c Enterprise Edition Release 12.2.0.1.0 - 64bit Production
+---copy to another server
+
+alzx6dbadm01@REPOPROD1|suatg]$cp coe_xfr_sql_profile_922nznmnhyzu7_3090904630.sql /ZFS/servNFS/dmp/suatg
+alzx6dbadm01@REPOPROD1|suatg]$
+
+--run the sql
+PRIMARY | alzx4dbadm01 | SYS@OPUSTEST > @coe_xfr_sql_profile_922nznmnhyzu7_3090904630.sql
+
+
+PL/SQL procedure successfully completed.
+
+PRIMARY | alzx4dbadm01 | SYS@OPUSTEST > WHENEVER SQLERROR CONTINUE
+PRIMARY | alzx4dbadm01 | SYS@OPUSTEST > SET ECHO OFF;
+
+            SIGNATURE
+---------------------
+  8685668355532002437
+
+
+... manual custom SQL Profile has been created
+
+
+COE_XFR_SQL_PROFILE_922nznmnhyzu7_3090904630 completed
+PRIMARY | alzx4dbadm01 | SYS@OPUSTEST > 
