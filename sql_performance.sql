@@ -11,3 +11,23 @@ and executions<>0
 and parsing_schema_name='BPMEPROV_SOAINFRA'
 --and sql_id ='2qxjam5v4b78g'
 order by 1 desc;
+
+--https://dbaclass.com/monitor-your-db/
+--- Queries in last 1 hour ( Run from Toad, for proper view)
+  SELECT module,
+         parsing_schema_name,
+         inst_id,
+         sql_id,
+         CHILD_NUMBER,
+         sql_plan_baseline,
+         sql_profile,
+         plan_hash_value,
+         sql_fulltext,
+         TO_CHAR (last_active_time, 'DD/MM/YY HH24:MI:SS'),
+         executions,
+         elapsed_time / executions / 1000 / 1000,
+         rows_processed,
+         sql_plan_baseline
+    FROM gv$sql
+   WHERE last_active_time > SYSDATE - 1 / 24 AND executions <> 0
+ORDER BY elapsed_time / executions DESC
