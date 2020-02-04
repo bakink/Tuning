@@ -103,3 +103,17 @@ Select t.sql_text,
        subs s
 where s.sql_id(+) = t.sql_id
 Order by to_number(cpu_time) desc;
+
+--https://jonathanlewis.wordpress.com/2011/05/11/dbms_xplan-reprise/
+select
+        plan_table_output  -- (the column of the pipelined function)
+from    (
+                select
+                        distinct sql_id, child_number
+                from
+                        v$sql_plan
+                where   (operation = 'TABLE ACCESS' and options = 'FULL')
+                or      (operation = 'INDEX' and options = 'FAST FULL SCAN')
+        ) v,
+        table(dbms_xplan.display_cursor(v.sql_id, v.child_number))
+;
