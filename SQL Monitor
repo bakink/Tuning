@@ -1,5 +1,41 @@
 
 --https://jonathanlewis.wordpress.com/2018/04/06/sql-monitor/
+--https://jonathanlewis.wordpress.com/2019/03/21/lost-time/
+-------------**********************
+
+set long 250000
+set longchunksize 65536
+ 
+set linesize 254
+set pagesize 100
+set trimspool on
+ 
+set heading off
+ 
+column text_line format a254
+ 
+spool report_sql_monitor
+ 
+select 
+        dbms_sqltune.report_sql_monitor_list(
+                active_since_date       => sysdate - 30 / (24*60),
+                type                    => 'TEXT'
+        ) text_line 
+from    dual
+;
+ 
+select 
+        dbms_sqltune.report_sql_monitor(
+--              sql_id                  => '&m_sql_id',
+--              start_time_filter       => sysdate - 30/(24 * 60),
+--              sql_exec_id             => &m_exec_id,
+                type                    =>'TEXT'
+        ) text_line 
+from    dual
+;
+ 
+ 
+-------------**********************
 set linesize 255
 set pagesize 200
 set trimspool on
@@ -87,3 +123,11 @@ SPOOL	OFF
 
 ---http://www.anbob.com/archives/3362.html
 select dbms_sqltune.report_sql_monitor(sql_id=>'&sql_id',report_level=>'ALL',type=>'text') from dual;  
+
+
+--http://ctulu.blogspot.com/2015/08/blog-post.html
+select DBMS_SQLTUNE.REPORT_SQL_MONITOR(sql_id => sqlm.sql_id, type=>'TEXT', report_level=>'ALL', sql_plan_hash_value=>sqlm.sql_plan_hash_value, sql_exec_id=>sqlm.sql_exec_id) stat,
+sqlm.* from gv$sql_monitor sqlm
+where last_refresh_time > sysdate-10/(60*24)
+and status = 'DONE (ERROR)'
+order by sql_exec_start desc;
