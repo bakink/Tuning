@@ -1,0 +1,181 @@
+cat metric/sysmetric.sql 
+/* 
+   sysmetric.sql - sqlplus script - displays significant system metrics
+   By Luca Nov 2007 
+*/
+
+col "Time+Delta" for a14
+col metric for a56
+col "Total" for a10
+
+set linesize 140
+set pagesize 1000
+
+set wrap off 
+REM truncates the metric field to max length
+
+select "Time+Delta", "Metric", 
+       case when "Total" >10000000 then '* '||round("Total"/1024/1024,0)||' M' 
+            when "Total" between 10000 and 10000000 then '+ '||round("Total"/1024,0)||' K'
+            when "Total" between 10 and 1024 then '  '||to_char(round("Total",0))
+            else '  '||to_char("Total") 
+       end "Total"
+from (
+ select to_char(min(begin_time),'hh24:mi:ss')||' /'||round(avg(intsize_csec/100),0)||'s' "Time+Delta",
+       metric_name||' - '||metric_unit "Metric", 
+       nvl(sum(value_inst1),0)+nvl(sum(value_inst2),0)+nvl(sum(value_inst3),0)+nvl(sum(value_inst4),0)+
+       nvl(sum(value_inst5),0)+nvl(sum(value_inst6),0)+nvl(sum(value_inst7),0)+nvl(sum(value_inst8),0) "Total",
+       sum(value_inst1) inst1, sum(value_inst2) inst2, sum(value_inst3) inst3, sum(value_inst4) inst4,
+       sum(value_inst5) inst5, sum(value_inst6) inst6, sum(value_inst7) inst7, sum(value_inst8) inst8
+ from
+  ( select begin_time,intsize_csec,metric_name,metric_unit,metric_id,group_id,
+       case inst_id when 1 then round(value,1) end value_inst1,
+       case inst_id when 2 then round(value,1) end value_inst2,
+       case inst_id when 3 then round(value,1) end value_inst3,
+       case inst_id when 4 then round(value,1) end value_inst4,
+       case inst_id when 5 then round(value,1) end value_inst5,
+       case inst_id when 6 then round(value,1) end value_inst6,
+       case inst_id when 7 then round(value,1) end value_inst7,
+       case inst_id when 8 then round(value,1) end value_inst8
+  from gv$sysmetric
+  where metric_name in ('Host CPU Utilization (%)','Current OS Load', 'Physical Write Total IO Requests Per Sec',
+        'Physical Write Total Bytes Per Sec', 'I/O Requests per Second', 'I/O Megabytes per Second',
+        'Physical Read Total Bytes Per Sec', 'Physical Read Total IO Requests Per Sec',
+        'CPU Usage Per Sec','Network Traffic Volume Per Sec','Logons Per Sec','Redo Generated Per Sec',
+        'User Transaction Per Sec','Average Active Sessions','Executions Per Sec','Average Synchronous Single-Block Read Latency','DB Block Changes Per Sec')
+  )
+ group by metric_id,group_id,metric_name,metric_unit
+ order by metric_name
+);
+
+set wrap on 
+
+cat ehm.sql
+-- even_histogram_metric, RAC version (from gv$ views)
+
+-- Usage: @ehm <delay> <event>
+-- example @ehm 15 db%sequential
+
+set serverout on
+set verify off
+
+prompt
+prompt waiting for &1 sec (delta measurement interval = &1 sec)
+
+DECLARE
+  v_event_pattern    varchar2(100) := '%'||'&2'||'%';
+  v_sleep_time       number := &1;
+  v_dtime_wait_milli number; 
+  v_dwaits           number;
+  v_avg_wait_milli   number;
+
+  CURSOR c1 IS
+    SELECT event, wait_time_milli, sum(wait_count) wait_count, max(last_update_time) last_update_time
+    FROM gv$event_histogram
+    WHERE event like v_event_pattern
+    GROUP by event, wait_time_milli
+    ORDER BY event,wait_time_milli;
+
+  CURSOR c2 IS
+    SELECT event, sum(time_waited_micro) time_waited_micro, sum(total_waits) total_waits
+    FROM gv$system_event
+    WHERE event like v_event_pattern
+    GROUP by event
+    ORDER BY event;
+
+  TYPE EventHisto IS TABLE OF c1%ROWTYPE;
+  TYPE SysEvent   IS TABLE OF c2%ROWTYPE;
+
+  t0_histval  EventHisto;  -- nested table of records for t0 snapshot
+  t1_histval  EventHisto;  -- nested table of records for t1 snapshot
+  t0_eventval SysEvent;    -- nested table of records for t0 snapshot
+  t1_eventval SysEvent;    -- nested table of records for t1 snapshot
+
+BEGIN
+
+  -- collect t0 data
+  OPEN c1;
+  OPEN c2;
+  FETCH c1 BULK COLLECT INTO t0_histval;
+  FETCH c2 BULK COLLECT INTO t0_eventval; 
+  CLOSE c1;
+  CLOSE c2;
+
+  IF t0_eventval.COUNT <=0 THEN
+    RAISE_APPLICATION_ERROR(-20001,'Not enough data. Probably wrong event name');
+  END IF;
+
+  IF t0_eventval.COUNT >= 100 THEN
+    RAISE_APPLICATION_ERROR(-20002,'Too many values, soft limit set to 100');
+  END IF;
+
+
+  -- put wait time here note user need exec privilege on dbms_lock  
+  sys.DBMS_LOCK.SLEEP (v_sleep_time);
+
+  -- collect t1 data
+  OPEN c1;
+  OPEN c2;
+  FETCH c1 BULK COLLECT INTO t1_histval;
+  FETCH c2 BULK COLLECT INTO t1_eventval; 
+  CLOSE c1;
+  CLOSE c2;
+
+  -- check and report error if number of points is different (can happen if new histogram bin is created)
+  if t0_histval.COUNT <> t1_histval.COUNT then
+     RAISE_APPLICATION_ERROR(-20003,'Number of histogram bins changed during collection. Cannot handle it.');
+  end if;
+
+  -- print out results
+  -- compute delta values and print. 
+  -- format with rpad to keep column width constant
+  DBMS_OUTPUT.PUT_LINE(chr(13));
+  DBMS_OUTPUT.PUT_LINE ('Wait (ms)   N#          Event                   Last update time');
+  DBMS_OUTPUT.PUT_LINE ('----------- ----------- ----------------------- -----------------------------------');
+
+  FOR i IN t1_histval.FIRST .. t1_histval.LAST LOOP
+    DBMS_OUTPUT.PUT_LINE (
+        rpad(t1_histval(i).wait_time_milli,13,' ')||
+        rpad(to_char(t1_histval(i).wait_count - t0_histval(i).wait_count),11,' ')||
+        t1_histval(i).event || ' ' ||
+        t1_histval(i).last_update_time 
+      );
+    END LOOP;
+
+  DBMS_OUTPUT.PUT_LINE(chr(13));
+  DBMS_OUTPUT.PUT_LINE ('Avg_wait(ms) N#         Tot_wait(ms) Event');
+  DBMS_OUTPUT.PUT_LINE ('------------ ---------- ------------ -------------------');
+
+  FOR i IN t1_eventval.FIRST .. t1_eventval.LAST LOOP
+    v_dtime_wait_milli := (t1_eventval(i).time_waited_micro - t0_eventval(i).time_waited_micro)/1000;
+    v_dwaits := t1_eventval(i).total_waits - t0_eventval(i).total_waits;
+    IF v_dwaits <> 0 then
+       v_avg_wait_milli := round(v_dtime_wait_milli/v_dwaits,2);
+    ELSE
+       v_avg_wait_milli := 0;
+    END IF;
+    DBMS_OUTPUT.PUT_LINE(
+        rpad(to_char(v_avg_wait_milli),13,' ') ||
+        rpad(to_char(v_dwaits),11,' ')||
+        rpad(to_char(round(v_dtime_wait_milli,1)),13,' ')||
+        t1_eventval(i).event 
+      );
+    END LOOP;
+     
+END;
+/
+
+ehmall.sql
+@metric/sysmetric
+
+@ehm 5 db%file%seq
+@ehm 5 direct%path%read
+@ehm 5 log%file%write
+@ehm 5 log%file%sync
+
+sta snapper all 5 2 sid=2131
+
+
+
+
+
