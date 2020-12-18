@@ -1,0 +1,170 @@
+[oracle@SISDS220-22 dba]$
+[oracle@SISDS220-22 dba]$ sqlplus / as sysdba
+
+SQL*Plus: Release 19.0.0.0.0 - Production on Thu Dec 17 09:39:58 2020
+Version 19.3.0.0.0
+
+Copyright (c) 1982, 2019, Oracle.  All rights reserved.
+
+
+Connected to:
+Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+Version 19.3.0.0.0
+
+SQL> sta ehmall
+
+Time+Delta     Metric                                                   Total
+-------------- -------------------------------------------------------- ----------
+09:38:34 /60s  Average Active Sessions - Active Sessions                  83
+09:39:34 /15s  Average Active Sessions - Active Sessions                  84
+09:38:34 /60s  Average Synchronous Single-Block Read Latency - Millisec   .9
+09:38:34 /60s  CPU Usage Per Sec - CentiSeconds Per Second                1317.1
+09:38:34 /60s  Current OS Load - Number Of Processes                      62
+09:38:34 /60s  DB Block Changes Per Sec - Blocks Per Second             + 73 K
+09:39:34 /15s  DB Block Changes Per Sec - Blocks Per Second             + 73 K
+09:38:34 /60s  Executions Per Sec - Executes Per Second                   7807.6
+09:39:34 /15s  Executions Per Sec - Executes Per Second                   7805
+09:38:34 /60s  Host CPU Utilization (%) - % Busy/(Idle+Busy)              46
+09:39:34 /15s  Host CPU Utilization (%) - % Busy/(Idle+Busy)              47
+09:38:34 /60s  I/O Megabytes per Second - Megabtyes per Second            6555.7
+09:38:34 /60s  I/O Requests per Second - Requests per Second            + 38 K
+09:38:34 /60s  Logons Per Sec - Logons Per Second                         0
+09:39:34 /15s  Logons Per Sec - Logons Per Second                         0
+09:38:34 /60s  Network Traffic Volume Per Sec - Bytes Per Second        + 288 K
+09:38:34 /60s  Physical Read Total Bytes Per Sec - Bytes Per Second     * 6283 M
+09:38:34 /60s  Physical Read Total IO Requests Per Sec - Requests Per S + 43 K
+09:38:34 /60s  Physical Write Total Bytes Per Sec - Bytes Per Second    * 277 M
+09:38:34 /60s  Physical Write Total IO Requests Per Sec - Requests Per    6849.8
+09:38:34 /60s  Redo Generated Per Sec - Bytes Per Second                * 55 M
+09:39:34 /15s  Redo Generated Per Sec - Bytes Per Second                * 56 M
+09:38:34 /60s  User Transaction Per Sec - Transactions Per Second         518
+09:39:34 /15s  User Transaction Per Sec - Transactions Per Second         523
+
+24 rows selected.
+
+
+waiting for 5 sec (delta measurement interval = 5 sec)
+
+Wait (ms)   N#          Event                   Last update time
+----------- ----------- ----------------------- -----------------------------------
+1            50976      db file sequential read 17-DEC-20 09.40.08.383660 AM +00:00
+2            99504      db file sequential read 17-DEC-20 09.40.08.384677 AM +00:00
+4            8033       db file sequential read 17-DEC-20 09.40.08.383972 AM +00:00
+8            256        db file sequential read 17-DEC-20 09.40.08.384059 AM +00:00
+16           68         db file sequential read 17-DEC-20 09.40.08.084296 AM +00:00
+32           5          db file sequential read 17-DEC-20 09.40.06.593574 AM +00:00
+64           0          db file sequential read 17-DEC-20 08.58.13.418576 AM +00:00
+128          0          db file sequential read 17-DEC-20 07.06.29.600016 AM +00:00
+256          0          db file sequential read 17-DEC-20 07.02.59.349579 AM +00:00
+512          0          db file sequential read 17-DEC-20 07.02.59.630232 AM +00:00
+1024         0          db file sequential read 17-DEC-20 07.02.59.640608 AM +00:00
+2048         0          db file sequential read 16-DEC-20 12.30.46.305040 PM +00:00
+
+Avg_wait(ms) N#         Tot_wait(ms) Event
+------------ ---------- ------------ -------------------
+1.28         158610     202750.9     db file sequential read
+
+PL/SQL procedure successfully completed.
+
+
+waiting for 5 sec (delta measurement interval = 5 sec)
+
+Wait (ms)   N#          Event                   Last update time
+----------- ----------- ----------------------- -----------------------------------
+1            0          direct path read 17-DEC-20 09.40.07.229851 AM +00:00
+2            1          direct path read 17-DEC-20 09.40.11.314868 AM +00:00
+4            7780       direct path read 17-DEC-20 09.40.13.399444 AM +00:00
+8            22312      direct path read 17-DEC-20 09.40.13.399730 AM +00:00
+16           109        direct path read 17-DEC-20 09.40.13.131769 AM +00:00
+32           12         direct path read 17-DEC-20 09.40.12.581953 AM +00:00
+64           0          direct path read 17-DEC-20 08.19.07.055104 AM +00:00
+128          0          direct path read 17-DEC-20 07.44.06.275572 AM +00:00
+256          0          direct path read 17-DEC-20 07.44.05.779324 AM +00:00
+512          0          direct path read 17-DEC-20 07.44.05.682827 AM +00:00
+1024         0          direct path read 17-DEC-20 07.44.05.054822 AM +00:00
+2048         0          direct path read 17-DEC-20 07.03.07.815738 AM +00:00
+
+Avg_wait(ms) N#         Tot_wait(ms) Event
+------------ ---------- ------------ -------------------
+4.46         30208      134695.7     direct path read
+
+PL/SQL procedure successfully completed.
+
+
+waiting for 5 sec (delta measurement interval = 5 sec)
+
+Wait (ms)   N#          Event                   Last update time
+----------- ----------- ----------------------- -----------------------------------
+1            1981       log file parallel write 17-DEC-20 09.40.18.412260 AM +00:00
+2            326        log file parallel write 17-DEC-20 09.40.18.410859 AM +00:00
+4            45         log file parallel write 17-DEC-20 09.40.18.201289 AM +00:00
+8            10         log file parallel write 17-DEC-20 09.40.18.231848 AM +00:00
+16           1          log file parallel write 17-DEC-20 09.40.18.397661 AM +00:00
+32           0          log file parallel write 17-DEC-20 09.33.07.968418 AM +00:00
+64           0          log file parallel write 17-DEC-20 05.22.22.123649 AM +00:00
+128          0          log file parallel write 16-DEC-20 12.30.46.748111 PM +00:00
+256          0          log file parallel write 16-DEC-20 01.54.15.713670 PM +00:00
+512          0          log file parallel write 17-DEC-20 07.02.58.716645 AM +00:00
+1024         0          log file parallel write 16-DEC-20 12.30.35.960304 PM +00:00
+1            0          log file single write 17-DEC-20 09.34.36.109261 AM +00:00
+2            0          log file single write 17-DEC-20 09.28.09.072469 AM +00:00
+4            0          log file single write 17-DEC-20 09.02.08.881990 AM +00:00
+8            0          log file single write 17-DEC-20 01.07.26.821629 AM +00:00
+
+Avg_wait(ms) N#         Tot_wait(ms) Event
+------------ ---------- ------------ -------------------
+.71          2360       1671.8       log file parallel write
+0            0          0            log file single write
+
+PL/SQL procedure successfully completed.
+
+
+waiting for 5 sec (delta measurement interval = 5 sec)
+
+Wait (ms)   N#          Event                   Last update time
+----------- ----------- ----------------------- -----------------------------------
+1            1964       log file sync 17-DEC-20 09.40.23.423505 AM +00:00
+2            473        log file sync 17-DEC-20 09.40.23.410658 AM +00:00
+4            100        log file sync 17-DEC-20 09.40.23.178351 AM +00:00
+8            22         log file sync 17-DEC-20 09.40.23.124390 AM +00:00
+16           3          log file sync 17-DEC-20 09.40.21.699881 AM +00:00
+32           0          log file sync 17-DEC-20 09.37.52.271906 AM +00:00
+64           0          log file sync 17-DEC-20 07.06.29.616499 AM +00:00
+128          0          log file sync 17-DEC-20 07.06.28.553163 AM +00:00
+256          0          log file sync 17-DEC-20 07.02.59.136560 AM +00:00
+512          0          log file sync 17-DEC-20 07.03.00.077614 AM +00:00
+1024         0          log file sync 17-DEC-20 07.03.00.077561 AM +00:00
+
+Avg_wait(ms) N#         Tot_wait(ms) Event
+------------ ---------- ------------ -------------------
+.85          2564       2175.1       log file sync
+
+PL/SQL procedure successfully completed.
+
+
+--------------------------------------------------
+
+Device:         rrqm/s   wrqm/s     r/s     w/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await r_await w_await  svctm  %util
+
+dm-2              0.00    31.50 2196.00  306.00 299960.00 12816.00   250.02     4.96    1.99    2.17    0.68   0.40  98.95
+dm-3              0.00    30.00 2252.50  261.00 329972.00 11900.00   272.03     5.29    2.11    2.26    0.74   0.39  98.70
+dm-4              0.00    45.00 2178.00  265.50 364704.00 13128.00   309.25     5.25    2.15    2.33    0.65   0.40  98.40
+dm-5              0.00    42.50 2048.00  265.50 297688.00 12523.75   268.18     4.77    2.06    2.25    0.66   0.43  99.15
+dm-6              0.00    47.50 2657.00  356.50 324276.00 16370.50   226.08     5.74    1.91    2.07    0.67   0.33  98.95
+dm-7              0.00    54.50 2043.50  263.00 300048.00 12312.00   270.85     4.90    2.12    2.28    0.89   0.43  99.25
+dm-8              0.00    52.00 2401.50  319.50 341340.00 14340.00   261.43     5.57    2.05    2.22    0.73   0.37  99.75
+dm-9              0.00    50.00 2289.00  256.00 323300.00 12980.00   264.27     5.17    2.03    2.18    0.75   0.39  98.70
+dm-10             0.00    50.00 2328.50  325.50 345960.00 15864.00   272.66     5.52    2.08    2.28    0.64   0.37  99.00
+dm-11             0.00    37.50 2234.50  329.00 334432.00 12784.00   270.89     5.22    2.04    2.26    0.60   0.39  98.70
+dm-12             0.00    42.50 2287.50  307.50 321332.25 13507.75   258.07     5.31    2.04    2.23    0.67   0.38  99.65
+dm-13             0.00    43.00 2152.00  327.50 306228.00 15528.00   259.53     4.91    1.98    2.19    0.65   0.40  98.90
+dm-14             0.00    32.50 2292.00  269.00 316776.00 12860.00   257.43     5.22    2.04    2.21    0.57   0.39  99.45
+dm-15             0.00    45.00 2186.00  310.00 317488.00 14740.00   266.21     5.17    2.07    2.26    0.75   0.40  98.90
+dm-16             0.00    30.50 2115.50  245.00 317464.00 10792.00   278.12     4.89    2.07    2.23    0.67   0.42  98.85
+dm-17             0.00    61.50 2068.00  365.50 305264.00 16612.50   264.54     5.03    2.07    2.31    0.67   0.41  98.60
+dm-18             0.00    59.50 1983.00  298.50 325080.00 16812.00   299.71     4.79    2.10    2.31    0.72   0.43  97.90
+dm-19             0.00    65.50 2124.00  372.50 301624.00 17312.00   255.51     4.93    1.97    2.20    0.69   0.40  98.75
+dm-20             0.00    34.00 2247.50  298.00 326408.00 13536.00   267.09     5.32    2.09    2.27    0.76   0.39  98.80
+dm-21             0.00    62.50 2417.00  267.50 331908.00 15560.00   258.87     5.39    2.01    2.16    0.66   0.37  98.55
+dm-22             0.00     0.00    0.00    0.00     0.00     0.00     0.00     0.00    0.00    0.00    0.00   0.00   0.00
+
