@@ -168,3 +168,21 @@ dm-20             0.00    34.00 2247.50  298.00 326408.00 13536.00   267.09     
 dm-21             0.00    62.50 2417.00  267.50 331908.00 15560.00   258.87     5.39    2.01    2.16    0.66   0.37  98.55
 dm-22             0.00     0.00    0.00    0.00     0.00     0.00     0.00     0.00    0.00    0.00    0.00   0.00   0.00
 
+
+create or replace procedure io_test.io_test( t_name varchar2 ) is
+    a_val number;
+    cnt   number;
+    thread_number number;
+ begin
+    thread_number := to_number(t_name);
+    a_val := trunc(dbms_random.value(1, 419429400));
+    execute immediate 'select count(d) from t' ||t_name || ' where a=:a_val' into cnt using a_val;
+    execute immediate 'select count(*) from t' ||t_name || ' where b=mod(:a_val, 50000)' into cnt using a_val;
+    execute immediate 'update t' || t_name || ' set c=sysdate where a between :a_val+500 and :a_val+1000' using a_val, a_val;
+    execute immediate 'update t' || t_name || ' set c=sysdate where a between :a_val+1500 and :a_val+2000' using a_val, a_val;
+    commit;
+    if( thread_number<=2 or (thread_number>=51 and thread_number<=52)) then
+      execute immediate 'select /*+ full(t) */ count(*) from t' || t_name || ' t where rownum<21942940' into cnt;
+    end if;
+ end;
+ /
